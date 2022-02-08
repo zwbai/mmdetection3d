@@ -3,33 +3,56 @@ _base_ = [
     '../_base_/datasets/kitti-3d-3class.py',
     '../_base_/schedules/cyclic_40e.py', '../_base_/default_runtime.py'
 ]
-voxel_size = [0.1, 0.1, 4]
 
-point_cloud_range = [-51.2, -51.2, -4, 51.2, 51.2, 0]
+voxel_size = [0.2, 0.2, 5]
 
-backbone=dict(out_channels=[128, 256])
-neck=dict(
-    type='SECONDFPN',
-    in_channels=[128, 256],
-    upsample_strides=[1, 2],
-    out_channels=[128, 128])
-middle_encoder=dict(output_shape=[1024, 1024])
-bbox_head=dict(
+point_cloud_range = [-51.2, -51.2, -4.5, 51.2, 51.2, 0.5]
+
+model = dict(
+    voxel_layer = dict(
+        point_cloud_range = point_cloud_range,
+        voxel_size=voxel_size,
+    ),
+    voxel_encoder=dict(
+        point_cloud_range = point_cloud_range,
+        voxel_size=voxel_size,
+    ),
+    middle_encoder=dict(output_shape=[512, 512]),
+    bbox_head=dict(
         type='Anchor3DHead',
         num_classes=2,
-        in_channels=256,
-        feat_channels=256,
-        use_direction_classifier=True,
         anchor_generator=dict(
-                    type='Anchor3DRangeGenerator',
-                    ranges=[
-                        [-51.2, -51.2, -3.74, 51.2, 51.2, -3.74],
-                        [-51.2, -51.2, -3.74, 51.2, 51.2, -3.74],
-                    ],
-                    sizes=[[0.38, 0.38, 1.86], [2.1, 4.9, 1.86]],
-                    rotations=[0, 1.57],
-                    reshape_out=False)
-)   
+            _delete_=True,
+            type='Anchor3DRangeGenerator',
+            ranges=[
+                [-51.2, -51.2, -2.6, 51.2, 51.2, -2.6],
+                [-51.2, -51.2, -3.78, 51.2, 51.2, -3.78],
+            ],
+            sizes=[[0.4, 0.4, 1.73], [1.6, 3.9, 1.56]],
+            rotations=[0, 1.57],
+            reshape_out=False)),
+    train_cfg=dict(
+        _delete_=True,
+        assigner=[
+            dict(# for Pedestrian
+                type='MaxIoUAssigner',
+                iou_calculator=dict(type='BboxOverlapsNearest3D'),
+                pos_iou_thr=0.5,
+                neg_iou_thr=0.35,
+                min_pos_iou=0.35,
+                ignore_iof_thr=-1),
+            dict(  # for Car
+                    type='MaxIoUAssigner',
+                    iou_calculator=dict(type='BboxOverlapsNearest3D'),
+                    pos_iou_thr=0.6,
+                    neg_iou_thr=0.45,
+                    min_pos_iou=0.45,
+                    ignore_iof_thr=-1)
+        ],
+        allowed_border=0,
+        pos_weight=-1,
+        debug=False))
+
 
 # dataset settings
 data_root = 'data/kitti/'
@@ -92,8 +115,8 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=6,
-    workers_per_gpu=4,
+    samples_per_gpu=8,
+    workers_per_gpu=8,
     train=dict(dataset=dict(pipeline=train_pipeline, classes=class_names)),
     val=dict(pipeline=test_pipeline, classes=class_names),
     test=dict(pipeline=test_pipeline, classes=class_names))

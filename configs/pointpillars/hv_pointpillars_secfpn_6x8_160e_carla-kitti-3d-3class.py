@@ -4,7 +4,7 @@ _base_ = [
     '../_base_/schedules/cyclic_40e.py', '../_base_/default_runtime.py'
 ]
 
-point_cloud_range = [-50, -50, -5, 50, 50, 3]
+point_cloud_range = [-51.2, -51.2, -4, 51.2, 51.2, 1]
 
 anchor_generator=dict(
             type='Anchor3DRangeGenerator',

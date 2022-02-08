@@ -1,8 +1,9 @@
 # dataset settings
 dataset_type = 'KittiDataset'
 data_root = 'data/kitti/'
-class_names = ['Pedestrian', 'Cyclist', 'Car']
-point_cloud_range = [0, -40, -3, 70.4, 40, 1]
+class_names = ['Pedestrian', 'Car']
+point_cloud_range = [-51.2, -51.2, -4, 51.2, 51.2, 0]
+
 input_modality = dict(use_lidar=True, use_camera=False)
 db_sampler = dict(
     data_root=data_root,
@@ -10,9 +11,9 @@ db_sampler = dict(
     rate=1.0,
     prepare=dict(
         filter_by_difficulty=[-1],
-        filter_by_min_points=dict(Car=5, Pedestrian=10, Cyclist=10)),
+        filter_by_min_points=dict(Car=5, Pedestrian=10)),
     classes=class_names,
-    sample_groups=dict(Car=12, Pedestrian=6, Cyclist=6))
+    sample_groups=dict(Car=12, Pedestrian=6))
 
 file_client_args = dict(backend='disk')
 # Uncomment the following if use ceph or other file clients.
