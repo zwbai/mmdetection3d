@@ -163,6 +163,9 @@ class Collect3D(object):
         data['img_metas'] = DC(img_metas, cpu_only=True)
         for key in self.keys:
             data[key] = results[key]
+
+        
+        # print('data', data)
         return data
 
     def __repr__(self):
@@ -207,6 +210,10 @@ class DefaultFormatBundle3D(DefaultFormatBundle):
         if 'points' in results:
             assert isinstance(results['points'], BasePoints)
             results['points'] = DC(results['points'].tensor)
+
+        if 'points02' in results:
+            assert isinstance(results['points02'], BasePoints)
+            results['points02'] = DC(results['points02'].tensor)
 
         for key in ['voxels', 'coors', 'voxel_centers', 'num_points']:
             if key not in results:
@@ -257,6 +264,8 @@ class DefaultFormatBundle3D(DefaultFormatBundle):
                     ],
                                                        dtype=np.int64)
         results = super(DefaultFormatBundle3D, self).__call__(results)
+
+        # print('results from DefaultFormatBundle3D', results)
         return results
 
     def __repr__(self):

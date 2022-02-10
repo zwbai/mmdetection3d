@@ -8,6 +8,7 @@ from mmdet3d.ops import Voxelization
 from mmdet.models import DETECTORS
 from .. import builder
 from .single_stage import SingleStage3DDetector
+import numpy as np
 
 
 @DETECTORS.register_module()
@@ -39,14 +40,47 @@ class PillarGrid(SingleStage3DDetector):
 
     def extract_feat(self, points, img_metas=None):
         """Extract features from points."""
+        pts_02_filename = img_metas[0]['pts_filename'].replace('velodyne', 'velodyne_02')
+        print('pts_02_filename', pts_02_filename)
+        points_02 = self.load_02_velodyne(pts_02_filename)
+        print('points_02', points_02[0].shape)
         print('points', points[0].shape)
+
         voxels, num_points, coors = self.voxelize(points)
+        voxels_02, num_points_02, coors_02 = self.voxelize(points_02)
         print('voxelize', voxels.shape)
+
         voxel_features = self.voxel_encoder(voxels, num_points, coors)
+        voxel_features_02 = self.voxel_encoder(voxels_02, num_points_02, coors_02)
+
         print('voxel_encoder output', voxel_features.shape)
+        print('voxel_encoder_02 output', voxel_features_02.shape)
+
+        """
+        voxelize torch.Size([17872, 32, 4])
+        voxel_encoder output torch.Size([17872, 64])
+        middle_encoder torch.Size([1, 64, 512, 512])
+        """
         batch_size = coors[-1, 0].item() + 1
         x = self.middle_encoder(voxel_features, coors, batch_size)
+
+        batch_size_02 = coors_02[-1, 0].item() + 1
+        x_02 = self.middle_encoder(voxel_features_02, coors_02, batch_size_02)
+
+
         print('middle_encoder', x.shape)
+        print('middle_encoder_02', x_02.shape)
+
+        x_3d = torch.unsqueeze(x, 4)
+        x_02_3d = torch.unsqueeze(x_02, 4)
+        print('x_3d', x_3d.shape)
+        print('x_02_3d', x_02_3d.shape)
+
+        x_fusion = torch.cat([x_3d, x_02_3d], 4)
+        print('x_fusion', x_fusion.shape)
+        
+
+
         x = self.backbone(x)
         if self.with_neck:
             x = self.neck(x)
@@ -92,6 +126,7 @@ class PillarGrid(SingleStage3DDetector):
         Returns:
             dict: Losses of each branch.
         """
+        # print('points02', points02)
         x = self.extract_feat(points, img_metas)
         outs = self.bbox_head(x)
         loss_inputs = outs + (gt_bboxes_3d, gt_labels_3d, img_metas)
@@ -99,8 +134,9 @@ class PillarGrid(SingleStage3DDetector):
             *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
 
-    def simple_test(self, points, img_metas, imgs=None, rescale=False):
+    def simple_test(self, points, img_metas,  imgs=None, rescale=False):
         """Test function without augmentaiton."""
+        # print('simple test, pts_filename', pts_filename)
         x = self.extract_feat(points, img_metas)
         outs = self.bbox_head(x)
         bbox_list = self.bbox_head.get_bboxes(
@@ -132,3 +168,8 @@ class PillarGrid(SingleStage3DDetector):
                                             self.bbox_head.test_cfg)
 
         return [merged_bboxes]
+
+    def load_02_velodyne(self, pts_02_filename):
+        pcd = np.fromfile(pts_02_filename, dtype=np.float32).reshape(-1, 4)
+        pcd_tensor = torch.from_numpy(pcd).to('cuda:0')
+        return [pcd_tensor]
