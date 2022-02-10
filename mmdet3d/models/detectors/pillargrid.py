@@ -68,16 +68,16 @@ class PillarGrid(SingleStage3DDetector):
         x_02 = self.middle_encoder(voxel_features_02, coors_02, batch_size_02)
 
 
-        print('middle_encoder', x.shape)
-        print('middle_encoder_02', x_02.shape)
+        print('middle_encoder', x[:,:, 250, 200:250])
+        print('middle_encoder_02', x_02[:,:, 250, 200:250])
 
         x_3d = torch.unsqueeze(x, 4)
         x_02_3d = torch.unsqueeze(x_02, 4)
-        print('x_3d', x_3d.shape)
-        print('x_02_3d', x_02_3d.shape)
+        print('x_3d', x_3d[:,63, 250, 200:250, 0])
+        print('x_02_3d', x_02_3d[:,63, 250, 200:250, 0])
 
         x_fusion = torch.cat([x_3d, x_02_3d], 4)
-        print('x_fusion', x_fusion.shape)
+        print('x_fusion', x_fusion[:,63, 250, 200:250, :])
         
 
 
