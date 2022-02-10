@@ -11,7 +11,7 @@ from .single_stage import SingleStage3DDetector
 
 
 @DETECTORS.register_module()
-class VoxelNet(SingleStage3DDetector):
+class PillarGrid(SingleStage3DDetector):
     r"""`VoxelNet <https://arxiv.org/abs/1711.06396>`_ for 3D detection."""
 
     def __init__(self,
@@ -25,7 +25,7 @@ class VoxelNet(SingleStage3DDetector):
                  test_cfg=None,
                  init_cfg=None,
                  pretrained=None):
-        super(VoxelNet, self).__init__(
+        super(PillarGrid, self).__init__(
             backbone=backbone,
             neck=neck,
             bbox_head=bbox_head,
