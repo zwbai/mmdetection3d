@@ -1,11 +1,10 @@
-voxel_size = [0.2, 0.2, 4]
-
+voxel_size = [0.16, 0.16, 4]
 
 model = dict(
-    type='VoxelNet',
+    type='PillarGrid',
     voxel_layer=dict(
         max_num_points=32,  # max_points_per_voxel
-        point_cloud_range=[-51.2, -51.2, -4, 51.2, 51.2, 0],
+        point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1],
         voxel_size=voxel_size,
         max_voxels=(16000, 40000)  # (training, testing) max_voxels
     ),
@@ -15,35 +14,36 @@ model = dict(
         feat_channels=[64],
         with_distance=False,
         voxel_size=voxel_size,
-        point_cloud_range=[-51.2, -51.2, -4, 51.2, 51.2, 0]),
+        point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1]),
     middle_encoder=dict(
-        type='PointPillarsScatter', in_channels=64, output_shape=[512, 512]),
+        type='PointPillarsScatter', in_channels=64, output_shape=[496, 432]),
     backbone=dict(
         type='SECOND',
         in_channels=64,
-        layer_nums=[5, 5],
-        layer_strides=[2, 2],
-        out_channels=[128, 256]),
+        layer_nums=[3, 5, 5],
+        layer_strides=[2, 2, 2],
+        out_channels=[64, 128, 256]),
     neck=dict(
         type='SECONDFPN',
-        in_channels=[128, 256],
-        upsample_strides=[1, 2],
-        out_channels=[128, 128]),
+        in_channels=[64, 128, 256],
+        upsample_strides=[1, 2, 4],
+        out_channels=[128, 128, 128]),
     bbox_head=dict(
         type='Anchor3DHead',
-        num_classes=2,
-        in_channels=256,
-        feat_channels=256,
+        num_classes=3,
+        in_channels=384,
+        feat_channels=384,
         use_direction_classifier=True,
         anchor_generator=dict(
             type='Anchor3DRangeGenerator',
             ranges=[
-                [-51.2, -51.2, -3.74, 51.2, 51.2, -3.74],
-                [-51.2, -51.2, -3.74, 51.2, 51.2, -3.74],
+                [0, -39.68, -0.6, 70.4, 39.68, -0.6],
+                [0, -39.68, -0.6, 70.4, 39.68, -0.6],
+                [0, -39.68, -1.78, 70.4, 39.68, -1.78],
             ],
-            sizes=[[0.38, 0.38, 1.86], [2.1, 4.9, 1.86]],
+            sizes=[[0.6, 0.8, 1.73], [0.6, 1.76, 1.73], [1.6, 3.9, 1.56]],
             rotations=[0, 1.57],
-            reshape_out=True),
+            reshape_out=False),
         diff_rad_by_sin=True,
         bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
         loss_cls=dict(
@@ -59,6 +59,13 @@ model = dict(
     train_cfg=dict(
         assigner=[
             dict(  # for Pedestrian
+                type='MaxIoUAssigner',
+                iou_calculator=dict(type='BboxOverlapsNearest3D'),
+                pos_iou_thr=0.5,
+                neg_iou_thr=0.35,
+                min_pos_iou=0.35,
+                ignore_iof_thr=-1),
+            dict(  # for Cyclist
                 type='MaxIoUAssigner',
                 iou_calculator=dict(type='BboxOverlapsNearest3D'),
                 pos_iou_thr=0.5,

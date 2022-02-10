@@ -30,8 +30,8 @@ def main():
     model = init_model(args.config, args.checkpoint, device=args.device)
     # test a single image
     result, data = inference_detector(model, args.pcd)
-    print('results', result)
-    print('data',data)
+    # print('results', result)
+    # print('data',data)
     # show the results
     show_result_meshlab(
         data,
