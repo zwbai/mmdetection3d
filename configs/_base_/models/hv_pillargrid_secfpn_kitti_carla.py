@@ -17,6 +17,9 @@ model = dict(
         point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1]),
     middle_encoder=dict(
         type='PointPillarsScatter', in_channels=64, output_shape=[496, 432]),
+    fusion_encoder=dict(
+        type='PillarGridFusion', fusion_channels = 2
+    ),
     backbone=dict(
         type='SECOND',
         in_channels=64,
