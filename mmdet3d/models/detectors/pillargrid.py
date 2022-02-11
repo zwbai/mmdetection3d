@@ -42,14 +42,20 @@ class PillarGrid(SingleStage3DDetector):
 
     def extract_feat(self, points, img_metas=None):
         """Extract features from points."""
-        pts_02_filename = img_metas[0]['pts_filename'].replace('velodyne', 'velodyne_02_transformed')
-        # print('pts_02_filename', pts_02_filename)
-        points_02 = self.load_02_velodyne(pts_02_filename)
+        points_02_batch = []
+        for i in range(len(img_metas)):
+            pts_02_filename = img_metas[i]['pts_filename'].replace('velodyne', 'velodyne_02_transformed')
+            # print('img_metas', img_metas)
+            # print('pts_02_filename', pts_02_filename)
+            points_02 = self.load_02_velodyne(pts_02_filename)
+            points_02_batch.append(points_02)
+
         # print('points_02', points_02[0].shape)
         # print('points', points[0].shape)
-
+        # print('points', points)
+        # print('points_02_batch',points_02_batch)
         voxels, num_points, coors = self.voxelize(points)
-        voxels_02, num_points_02, coors_02 = self.voxelize(points_02)
+        voxels_02, num_points_02, coors_02 = self.voxelize(points_02_batch)
         # print('voxelize', voxels.shape)
 
         voxel_features = self.voxel_encoder(voxels, num_points, coors)
@@ -73,12 +79,14 @@ class PillarGrid(SingleStage3DDetector):
         x_3d = torch.unsqueeze(x, 4)
         x_02_3d = torch.unsqueeze(x_02, 4)
 
+        # print('middle_encoder', x.shape)
+        # print('middle_encoder_02', x_02.shape)
+        # print('x_3d', x_3d.shape)
+        # print('x_02_3d', x_02_3d.shape)
+
         x_fusion = torch.cat([x_3d, x_02_3d], 4)
 
-        # print('middle_encoder', x[:,:, 250, 200:250])
-        # print('middle_encoder_02', x_02[:,:, 250, 200:250])
-        # print('x_3d', x_3d[:,63, 250, 200:250, 0])
-        # print('x_02_3d', x_02_3d[:,63, 250, 200:250, 0])
+
         # print('x_fusion', x_fusion[:,63, 250, 200:250, :])
         
         x = self.fusion_encoder(x_fusion)
@@ -176,4 +184,4 @@ class PillarGrid(SingleStage3DDetector):
         
 
         pcd_tensor = torch.from_numpy(pcd).to('cuda:0')
-        return [pcd_tensor]
+        return pcd_tensor
