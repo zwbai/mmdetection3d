@@ -9,7 +9,7 @@ from mmdet.models import DETECTORS
 from .. import builder
 from .single_stage import SingleStage3DDetector
 import numpy as np
-
+import open3d as o3d
 
 @DETECTORS.register_module()
 class PillarGrid(SingleStage3DDetector):
@@ -45,8 +45,8 @@ class PillarGrid(SingleStage3DDetector):
         points_02_batch = []
         for i in range(len(img_metas)):
             pts_02_filename = img_metas[i]['pts_filename'].replace('velodyne', 'velodyne_02_transformed')
-            # print('img_metas', img_metas)
-            # print('pts_02_filename', pts_02_filename)
+            print('img_metas', img_metas)
+            print('pts_02_filename', pts_02_filename)
             points_02 = self.load_02_velodyne(pts_02_filename)
             points_02_batch.append(points_02)
 
@@ -182,6 +182,12 @@ class PillarGrid(SingleStage3DDetector):
     def load_02_velodyne(self, pts_02_filename):
         pcd = np.fromfile(pts_02_filename, dtype=np.float32).reshape(-1, 4)
         
+        pcd_xyz = pcd[:, :3]
+
+        # print(pcd_xyz)
+        pcd_o3d = o3d.geometry.PointCloud()
+        pcd_o3d.points = o3d.utility.Vector3dVector(pcd_xyz)
+        o3d.visualization.draw_geometries([pcd_o3d])
 
         pcd_tensor = torch.from_numpy(pcd).to('cuda:0')
         return pcd_tensor

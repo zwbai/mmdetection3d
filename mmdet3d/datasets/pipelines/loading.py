@@ -537,11 +537,11 @@ class LoadPointsFromMultipleFile(object):
         pts_filename = results['pts_filename']
         pts02_filename = pts_filename.replace('velodyne', 'velodyne_02')
         points = self._load_points(pts_filename)
-        points02 = self._load_points(pts02_filename)
+        # points02 = self._load_points(pts02_filename)
         points = points.reshape(-1, self.load_dim)
-        points02 = points02.reshape(-1, self.load_dim)
+        # points02 = points02.reshape(-1, self.load_dim)
         points = points[:, self.use_dim]
-        points02 = points02[:, self.use_dim]
+        # points02 = points02[:, self.use_dim]
         attribute_dims = None
 
         if self.shift_height:
@@ -567,10 +567,10 @@ class LoadPointsFromMultipleFile(object):
         points = points_class(
             points, points_dim=points.shape[-1], attribute_dims=attribute_dims)
         
-        points02 = points_class(
-            points02, points_dim=points02.shape[-1], attribute_dims=attribute_dims)
+        # points02 = points_class(
+        #     points02, points_dim=points02.shape[-1], attribute_dims=attribute_dims)
         results['points'] = points
-        results['points02'] = points02
+        # results['points02'] = points02
         # print('results from loader', results)
         return results
 
