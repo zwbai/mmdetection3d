@@ -11,14 +11,14 @@ from .single_stage import SingleStage3DDetector
 import numpy as np
 import open3d as o3d
 
+
 @DETECTORS.register_module()
-class PillarGrid(SingleStage3DDetector):
-    r"""`VoxelNet <https://arxiv.org/abs/1711.06396>`_ for 3D detection."""
+class PillarGridShare(SingleStage3DDetector):
+    r"""PillarGrid with shared weights for pillar feature encoder"""
 
     def __init__(self,
                  voxel_layer,
                  voxel_encoder,
-                 voxel_encoder_onboard,
                  middle_encoder,
                  fusion_encoder,
                  backbone,
@@ -28,7 +28,7 @@ class PillarGrid(SingleStage3DDetector):
                  test_cfg=None,
                  init_cfg=None,
                  pretrained=None):
-        super(PillarGrid, self).__init__(
+        super(PillarGridShare, self).__init__(
             backbone=backbone,
             neck=neck,
             bbox_head=bbox_head,
@@ -38,7 +38,6 @@ class PillarGrid(SingleStage3DDetector):
             pretrained=pretrained)
         self.voxel_layer = Voxelization(**voxel_layer)
         self.voxel_encoder = builder.build_voxel_encoder(voxel_encoder)
-        self.voxel_encoder_onboard = builder.build_voxel_encoder(voxel_encoder_onboard)
         self.middle_encoder = builder.build_middle_encoder(middle_encoder)
         self.fusion_encoder = builder.build_fusion_encoder(fusion_encoder)
 
@@ -62,12 +61,13 @@ class PillarGrid(SingleStage3DDetector):
         x = self.middle_encoder(voxel_features, coors, batch_size)
 
 
-        voxels_02, num_points_02, coors_02 = self.voxelize(points_02_batch)
+        with torch.no_grad():
+            voxels_02, num_points_02, coors_02 = self.voxelize(points_02_batch)
+            
+            voxel_features_02 = self.voxel_encoder(voxels_02, num_points_02, coors_02)
+            batch_size_02 = coors_02[-1, 0].item() + 1
+            x_02 = self.middle_encoder(voxel_features_02, coors_02, batch_size_02)
         
-        voxel_features_02 = self.voxel_encoder_onboard(voxels_02, num_points_02, coors_02)
-        batch_size_02 = coors_02[-1, 0].item() + 1
-        x_02 = self.middle_encoder(voxel_features_02, coors_02, batch_size_02)
-    
         # print('voxelize', voxels.shape)
         # print('voxel_encoder output', voxel_features.shape)
         # print('voxel_encoder_02 output', voxel_features_02.shape)
@@ -197,4 +197,3 @@ class PillarGrid(SingleStage3DDetector):
 
         pcd_tensor = torch.from_numpy(pcd).to('cuda:0')
         return pcd_tensor
-

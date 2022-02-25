@@ -15,7 +15,7 @@ from .ssd3dnet import SSD3DNet
 from .votenet import VoteNet
 from .voxelnet import VoxelNet
 from .pillargrid import PillarGrid
-from .pillargrid import PillarGridShare
+from .pillargridshare import PillarGridShare
 
 __all__ = [
     'Base3DDetector', 'VoxelNet', 'DynamicVoxelNet', 'MVXTwoStageDetector',
