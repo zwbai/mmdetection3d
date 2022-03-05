@@ -63,7 +63,7 @@ class KittiDataset(Custom3DDataset):
                  box_type_3d='LiDAR',
                  filter_empty_gt=True,
                  test_mode=False,
-                 pcd_limit_range=[0, -40, -3, 70.4, 40, 0.0]):
+                 pcd_limit_range=[-51.2, -51.2, -4.5, 51.2, 51.2, 0.5]):
         super().__init__(
             data_root=data_root,
             ann_file=ann_file,
@@ -271,7 +271,9 @@ class KittiDataset(Custom3DDataset):
             result_files = self.bbox2result_kitti2d(outputs, self.CLASSES,
                                                     pklfile_prefix,
                                                     submission_prefix)
+            print('if 1')
         elif 'pts_bbox' in outputs[0] or 'img_bbox' in outputs[0]:
+            print('if 2')
             result_files = dict()
             for name in outputs[0]:
                 results_ = [out[name] for out in outputs]
@@ -290,6 +292,7 @@ class KittiDataset(Custom3DDataset):
                         submission_prefix_)
                 result_files[name] = result_files_
         else:
+            print('if 3')
             result_files = self.bbox2result_kitti(outputs, self.CLASSES,
                                                   pklfile_prefix,
                                                   submission_prefix)
@@ -326,7 +329,10 @@ class KittiDataset(Custom3DDataset):
         Returns:
             dict[str, float]: Results of each evaluation metric.
         """
+        # print('results', results)
+        # print('pklfile_prefix', pklfile_prefix)
         result_files, tmp_dir = self.format_results(results, pklfile_prefix)
+        # print('result_files',result_files)
         from mmdet3d.core.evaluation import kitti_eval
         gt_annos = [info['annos'] for info in self.data_infos]
 
@@ -384,13 +390,15 @@ class KittiDataset(Custom3DDataset):
             'invalid list length of network outputs'
         if submission_prefix is not None:
             mmcv.mkdir_or_exist(submission_prefix)
-
+        # print('\n here')
+        # print('\n net out', net_outputs)
         det_annos = []
         print('\nConverting prediction to KITTI format')
         for idx, pred_dicts in enumerate(
                 mmcv.track_iter_progress(net_outputs)):
             annos = []
             info = self.data_infos[idx]
+            # print('\ninfo', info)
             sample_idx = info['image']['image_idx']
             image_shape = info['image']['image_shape'][:2]
             box_dict = self.convert_valid_bboxes(pred_dicts, info)
@@ -411,7 +419,7 @@ class KittiDataset(Custom3DDataset):
                 scores = box_dict['scores']
                 box_preds_lidar = box_dict['box3d_lidar']
                 label_preds = box_dict['label_preds']
-
+                # print('\nbox_preds_lidar', box_preds_lidar)
                 for box, box_lidar, bbox, score, label in zip(
                         box_preds, box_preds_lidar, box_2d_preds, scores,
                         label_preds):
@@ -499,6 +507,7 @@ class KittiDataset(Custom3DDataset):
             'invalid list length of network outputs'
         det_annos = []
         print('\nConverting prediction to KITTI format')
+        print('here here')
         for i, bboxes_per_sample in enumerate(
                 mmcv.track_iter_progress(net_outputs)):
             annos = []
@@ -513,7 +522,7 @@ class KittiDataset(Custom3DDataset):
                 rotation_y=[],
                 score=[])
             sample_idx = self.data_infos[i]['image']['image_idx']
-
+            print('bboxes_per_sample', bboxes_per_sample)
             num_example = 0
             for label in range(len(bboxes_per_sample)):
                 bbox = bboxes_per_sample[label]
@@ -652,10 +661,14 @@ class KittiDataset(Custom3DDataset):
                           (box_2d_preds[:, 2] > 0) & (box_2d_preds[:, 3] > 0))
         # check box_preds
         limit_range = box_preds.tensor.new_tensor(self.pcd_limit_range)
+        # print('\nlimit-range', limit_range)
         valid_pcd_inds = ((box_preds.center > limit_range[:3]) &
                           (box_preds.center < limit_range[3:]))
-        valid_inds = valid_cam_inds & valid_pcd_inds.all(-1)
-
+    
+        # valid_inds = valid_cam_inds & valid_pcd_inds.all(-1)
+        valid_inds = valid_pcd_inds.all(-1)
+        # print('\n valid pcd ind: ', valid_pcd_inds)
+        # print('\n valid ind: ', valid_inds)
         if valid_inds.sum() > 0:
             return dict(
                 bbox=box_2d_preds[valid_inds, :].numpy(),
