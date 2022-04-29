@@ -1,4 +1,3 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import mmcv
 import numpy as np
 from collections import OrderedDict
@@ -347,7 +346,9 @@ def export_2d_annotation(root_path, info_path, mono3d=True):
     coco_2d_dict = dict(annotations=[], images=[], categories=cat2Ids)
     from os import path as osp
     for info in mmcv.track_iter_progress(kitti_infos):
+        
         coco_infos = get_2d_boxes(info, occluded=[0, 1, 2, 3], mono3d=mono3d)
+        # print('coco_infos, ', coco_infos)
         (height, width,
          _) = mmcv.imread(osp.join(root_path,
                                    info['image']['image_path'])).shape
@@ -367,6 +368,7 @@ def export_2d_annotation(root_path, info_path, mono3d=True):
             # add an empty key for coco format
             coco_info['segmentation'] = []
             coco_info['id'] = coco_ann_id
+            # print(coco_info)
             coco_2d_dict['annotations'].append(coco_info)
             coco_ann_id += 1
     if mono3d:
@@ -412,6 +414,7 @@ def get_2d_boxes(info, occluded, mono3d=True):
             ann_rec[k] = ann_dicts[k][i]
         ann_recs.append(ann_rec)
 
+    # print('ann_recs, ', ann_recs , '\n')
     for ann_idx, ann_rec in enumerate(ann_recs):
         # Augment sample_annotation with token information.
         ann_rec['sample_annotation_token'] = \
@@ -447,10 +450,11 @@ def get_2d_boxes(info, occluded, mono3d=True):
         camera_intrinsic = P2
         corner_coords = view_points(corners_3d, camera_intrinsic,
                                     True).T[:, :2].tolist()
-
+        # print('corner_coords, ', corner_coords)
         # Keep only corners that fall within the image.
         final_coords = post_process_coords(corner_coords)
-
+        # final_coords = corner_coords
+        # print('final_coords, ', final_coords)
         # Skip if the convex hull of the re-projected corners
         # does not intersect the image canvas.
         if final_coords is None:
@@ -458,11 +462,13 @@ def get_2d_boxes(info, occluded, mono3d=True):
         else:
             min_x, min_y, max_x, max_y = final_coords
 
+        # print('generate_record')
         # Generate dictionary record to be included in the .json file.
         repro_rec = generate_record(ann_rec, min_x, min_y, max_x, max_y,
                                     sample_data_token,
                                     info['image']['image_path'])
 
+        # print('repro_rec, ', repro_rec, '\n')
         # If mono3d=True, add 3D annotations in camera coordinates
         if mono3d and (repro_rec is not None):
             repro_rec['bbox_cam3d'] = np.concatenate(
@@ -541,4 +547,5 @@ def generate_record(ann_rec, x1, y1, x2, y2, sample_data_token, filename):
     coco_rec['bbox'] = [x1, y1, x2 - x1, y2 - y1]
     coco_rec['iscrowd'] = 0
 
+    # print('coco_rec', coco_rec)
     return coco_rec

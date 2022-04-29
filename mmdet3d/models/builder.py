@@ -12,7 +12,7 @@ MODELS = Registry('models', parent=MMCV_MODELS)
 VOXEL_ENCODERS = MODELS
 MIDDLE_ENCODERS = MODELS
 FUSION_LAYERS = MODELS
-
+FUSION_ENCODERS = MODELS
 
 def build_backbone(cfg):
     """Build backbone."""
@@ -97,3 +97,8 @@ def build_middle_encoder(cfg):
 def build_fusion_layer(cfg):
     """Build fusion layer."""
     return FUSION_LAYERS.build(cfg)
+
+
+def build_fusion_encoder(cfg):
+    """Build fusion encoder"""
+    return FUSION_ENCODERS.build(cfg)

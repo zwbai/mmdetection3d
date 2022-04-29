@@ -33,6 +33,7 @@ def clean_data(gt_anno, dt_anno, current_class, difficulty):
     MAX_TRUNCATION = [0.15, 0.3, 0.5]
     dc_bboxes, ignored_gt, ignored_dt = [], [], []
     current_cls_name = CLASS_NAMES[current_class].lower()
+    # print('\n current class name', current_cls_name)
     num_gt = len(gt_anno['name'])
     num_dt = len(dt_anno['name'])
     num_valid_gt = 0
@@ -51,10 +52,10 @@ def clean_data(gt_anno, dt_anno, current_class, difficulty):
         else:
             valid_class = -1
         ignore = False
-        if ((gt_anno['occluded'][i] > MAX_OCCLUSION[difficulty])
-                or (gt_anno['truncated'][i] > MAX_TRUNCATION[difficulty])
-                or (height <= MIN_HEIGHT[difficulty])):
-            ignore = True
+        # if ((gt_anno['occluded'][i] > MAX_OCCLUSION[difficulty])
+        #         or (gt_anno['truncated'][i] > MAX_TRUNCATION[difficulty])
+        #         or (height <= MIN_HEIGHT[difficulty])):
+        #     ignore = True
         if valid_class == 1 and not ignore:
             ignored_gt.append(0)
             num_valid_gt += 1
@@ -71,13 +72,21 @@ def clean_data(gt_anno, dt_anno, current_class, difficulty):
         else:
             valid_class = -1
         height = abs(dt_anno['bbox'][i, 3] - dt_anno['bbox'][i, 1])
-        if height < MIN_HEIGHT[difficulty]:
-            ignored_dt.append(1)
-        elif valid_class == 1:
+        # print('\nheight', height)
+
+        # if height < MIN_HEIGHT[difficulty]:
+        #     ignored_dt.append(1)
+        # elif valid_class == 1:
+        #     ignored_dt.append(0)
+        # else:
+        #     ignored_dt.append(-1)
+
+        if valid_class == 1:
             ignored_dt.append(0)
         else:
             ignored_dt.append(-1)
-
+    # print('\n num_valid_gt', num_valid_gt)
+    # print('\n ignored_gt', ignored_gt)
     return num_valid_gt, ignored_gt, ignored_dt, dc_bboxes
 
 
@@ -423,7 +432,9 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
     total_dc_num = []
     ignored_gts, ignored_dets, dontcares = [], [], []
     total_num_valid_gt = 0
+    # print('dt', dt_annos)
     for i in range(len(gt_annos)):
+        # print('\ngt_annos', gt_annos)
         rets = clean_data(gt_annos[i], dt_annos[i], current_class, difficulty)
         num_valid_gt, ignored_gt, ignored_det, dc_bboxes = rets
         ignored_gts.append(np.array(ignored_gt, dtype=np.int64))
@@ -444,6 +455,9 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
         gt_datas_list.append(gt_datas)
         dt_datas_list.append(dt_datas)
     total_dc_num = np.stack(total_dc_num, axis=0)
+
+    # print('\n gt_datas_list',gt_datas_list)
+    # print('\n dt_datas_list',dt_datas_list)
     return (gt_datas_list, dt_datas_list, ignored_gts, ignored_dets, dontcares,
             total_dc_num, total_num_valid_gt)
 
@@ -456,6 +470,8 @@ def eval_class(gt_annos,
                min_overlaps,
                compute_aos=False,
                num_parts=200):
+    # print('\n gt_annos: {} \n'.format(gt_annos[0]))
+    # print('\n dt_annos: {} \n'.format(dt_annos[0]))
     """Kitti eval. support 2d/bev/3d/aos eval. support 0.5:0.05:0.95 coco AP.
 
     Args:
@@ -488,9 +504,12 @@ def eval_class(gt_annos,
     recall = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     aos = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    # print('\n compute_aos: ', compute_aos)
     for m, current_class in enumerate(current_classes):
+        # print("current class", current_class)
         for idx_l, difficulty in enumerate(difficultys):
             rets = _prepare_data(gt_annos, dt_annos, current_class, difficulty)
+            # print('difficulty: ', difficulty)
             (gt_datas_list, dt_datas_list, ignored_gts, ignored_dets,
              dontcares, total_dc_num, total_num_valid_gt) = rets
             for k, min_overlap in enumerate(min_overlaps[:, metric, m]):
@@ -566,6 +585,8 @@ def eval_class(gt_annos,
     del parted_overlaps
 
     gc.collect()
+
+    print('\n ret_dict: ',ret_dict)
     return ret_dict
 
 
@@ -613,12 +634,19 @@ def do_eval(gt_annos,
         ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
                          min_overlaps)
         mAP_bev = get_mAP(ret['precision'])
+        mAR_bev = get_mAP(ret['recall'])
+        
 
     mAP_3d = None
     if '3d' in eval_types:
         ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
                          min_overlaps)
         mAP_3d = get_mAP(ret['precision'])
+        mAR_3d = get_mAP(ret['recall'])
+        
+    
+    print('\n mAR_bev:', mAR_bev)
+    print('\n mAR_3d:', mAR_3d)
     return mAP_bbox, mAP_bev, mAP_3d, mAP_aos
 
 

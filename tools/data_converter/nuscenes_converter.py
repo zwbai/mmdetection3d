@@ -545,8 +545,9 @@ def post_process_coords(
     polygon_from_2d_box = MultiPoint(corner_coords).convex_hull
     img_canvas = box(0, 0, imsize[0], imsize[1])
 
-    if polygon_from_2d_box.intersects(img_canvas):
+    if polygon_from_2d_box.intersects(img_canvas) and polygon_from_2d_box.intersection(img_canvas).geom_type == 'Polygon':
         img_intersection = polygon_from_2d_box.intersection(img_canvas)
+        # print('img_intersection is polygon', img_intersection.geom_type)
         intersection_coords = np.array(
             [coord for coord in img_intersection.exterior.coords])
 
@@ -554,7 +555,7 @@ def post_process_coords(
         min_y = min(intersection_coords[:, 1])
         max_x = max(intersection_coords[:, 0])
         max_y = max(intersection_coords[:, 1])
-
+        # print("intersection: ",min_x, min_y, max_x, max_y)
         return min_x, min_y, max_x, max_y
     else:
         return None

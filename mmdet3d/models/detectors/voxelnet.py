@@ -39,10 +39,14 @@ class VoxelNet(SingleStage3DDetector):
 
     def extract_feat(self, points, img_metas=None):
         """Extract features from points."""
+        # print('points', points[0].shape)
         voxels, num_points, coors = self.voxelize(points)
+        # print('voxelize', voxels.shape)
         voxel_features = self.voxel_encoder(voxels, num_points, coors)
+        # print('voxel_encoder output', voxel_features.shape)
         batch_size = coors[-1, 0].item() + 1
         x = self.middle_encoder(voxel_features, coors, batch_size)
+        # print('middle_encoder', x.shape)
         x = self.backbone(x)
         if self.with_neck:
             x = self.neck(x)
