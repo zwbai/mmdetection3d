@@ -1,9 +1,10 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import mmcv
-import numpy as np
 import tempfile
 import warnings
 from os import path as osp
+
+import mmcv
+import numpy as np
 from torch.utils.data import Dataset
 
 from mmdet.datasets import DATASETS
@@ -32,7 +33,7 @@ class Custom3DSegDataset(Dataset):
             as input. Defaults to None.
         test_mode (bool, optional): Whether the dataset is in test mode.
             Defaults to False.
-        ignore_index (int, optional): The label index to be ignored, e.g. \
+        ignore_index (int, optional): The label index to be ignored, e.g.
             unannotated points. If None is given, set to len(self.CLASSES) to
             be consistent with PointSegClassMapping function in pipeline.
             Defaults to None.
@@ -61,14 +62,26 @@ class Custom3DSegDataset(Dataset):
                  modality=None,
                  test_mode=False,
                  ignore_index=None,
-                 scene_idxs=None):
+                 scene_idxs=None,
+                 file_client_args=dict(backend='disk')):
         super().__init__()
         self.data_root = data_root
         self.ann_file = ann_file
         self.test_mode = test_mode
         self.modality = modality
+        self.file_client = mmcv.FileClient(**file_client_args)
 
-        self.data_infos = self.load_annotations(self.ann_file)
+        # load annotations
+        if hasattr(self.file_client, 'get_local_path'):
+            with self.file_client.get_local_path(self.ann_file) as local_path:
+                self.data_infos = self.load_annotations(open(local_path, 'rb'))
+        else:
+            warnings.warn(
+                'The used MMCV version does not have get_local_path. '
+                f'We treat the {self.ann_file} as local paths and it '
+                'might cause errors if the path is not a local path. '
+                'Please use MMCV>= 1.3.16 if you meet errors.')
+            self.data_infos = self.load_annotations(self.ann_file)
 
         if pipeline is not None:
             self.pipeline = Compose(pipeline)
@@ -93,7 +106,8 @@ class Custom3DSegDataset(Dataset):
         Returns:
             list[dict]: List of annotations.
         """
-        return mmcv.load(ann_file)
+        # loading data from a file-like object needs file format
+        return mmcv.load(ann_file, file_format='pkl')
 
     def get_data_info(self, index):
         """Get data info according to the given index.
@@ -102,7 +116,7 @@ class Custom3DSegDataset(Dataset):
             index (int): Index of the sample data to get.
 
         Returns:
-            dict: Data information that will be passed to the data \
+            dict: Data information that will be passed to the data
                 preprocessing pipelines. It includes the following keys:
 
                 - sample_idx (str): Sample index.
@@ -179,13 +193,13 @@ class Custom3DSegDataset(Dataset):
         This function is taken from MMSegmentation.
 
         Args:
-            classes (Sequence[str] | str | None): If classes is None, use
+            classes (Sequence[str] | str): If classes is None, use
                 default CLASSES defined by builtin dataset. If classes is a
                 string, take it as a file name. The file contains the name of
                 classes where each line contains one class name. If classes is
                 a tuple or list, override the CLASSES defined by the dataset.
                 Defaults to None.
-            palette (Sequence[Sequence[int]]] | np.ndarray | None):
+            palette (Sequence[Sequence[int]]] | np.ndarray):
                 The palette of segmentation map. If None is given, random
                 palette will be generated. Defaults to None.
         """
@@ -276,13 +290,13 @@ class Custom3DSegDataset(Dataset):
 
         Args:
             outputs (list[dict]): Testing results of the dataset.
-            pklfile_prefix (str | None): The prefix of pkl files. It includes
+            pklfile_prefix (str): The prefix of pkl files. It includes
                 the file path and the prefix of filename, e.g., "a/b/prefix".
                 If not specified, a temp file will be created. Default: None.
 
         Returns:
-            tuple: (outputs, tmp_dir), outputs is the detection results, \
-                tmp_dir is the temporal directory created for saving json \
+            tuple: (outputs, tmp_dir), outputs is the detection results,
+                tmp_dir is the temporal directory created for saving json
                 files when ``jsonfile_prefix`` is not specified.
         """
         if pklfile_prefix is None:
@@ -306,7 +320,7 @@ class Custom3DSegDataset(Dataset):
         Args:
             results (list[dict]): List of results.
             metric (str | list[str]): Metrics to be evaluated.
-            logger (logging.Logger | None | str): Logger used for printing
+            logger (logging.Logger | str, optional): Logger used for printing
                 related information during evaluation. Defaults to None.
             show (bool, optional): Whether to visualize.
                 Defaults to False.
@@ -364,7 +378,7 @@ class Custom3DSegDataset(Dataset):
         """Get data loading pipeline in self.show/evaluate function.
 
         Args:
-            pipeline (list[dict] | None): Input pipeline. If None is given, \
+            pipeline (list[dict]): Input pipeline. If None is given,
                 get from self.pipeline.
         """
         if pipeline is None:

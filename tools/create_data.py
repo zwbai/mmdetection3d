@@ -6,10 +6,15 @@ from tools.data_converter import indoor_converter as indoor
 from tools.data_converter import kitti_converter as kitti
 from tools.data_converter import lyft_converter as lyft_converter
 from tools.data_converter import nuscenes_converter as nuscenes_converter
-from tools.data_converter.create_gt_database import create_groundtruth_database
+from tools.data_converter.create_gt_database import (
+    create_groundtruth_database, GTDatabaseCreater)
 
 
-def kitti_data_prep(root_path, info_prefix, version, out_dir):
+def kitti_data_prep(root_path,
+                    info_prefix,
+                    version,
+                    out_dir,
+                    with_plane=False):
     """Prepare data related to Kitti dataset.
 
     Related data consists of '.pkl' files recording basic infos,
@@ -20,9 +25,16 @@ def kitti_data_prep(root_path, info_prefix, version, out_dir):
         info_prefix (str): The prefix of info filenames.
         version (str): Dataset version.
         out_dir (str): Output directory of the groundtruth database info.
+        with_plane (bool, optional): Whether to use plane information.
+            Default: False.
     """
+<<<<<<< HEAD
     kitti.create_kitti_info_file(root_path, info_prefix)
     # kitti.create_reduced_point_cloud(root_path, info_prefix)
+=======
+    kitti.create_kitti_info_file(root_path, info_prefix, with_plane)
+    kitti.create_reduced_point_cloud(root_path, info_prefix)
+>>>>>>> 5111eda8da97bb670371d9d52a9dd9425cbb2f31
 
     info_train_path = osp.join(root_path, f'{info_prefix}_infos_train.pkl')
     info_val_path = osp.join(root_path, f'{info_prefix}_infos_val.pkl')
@@ -61,7 +73,8 @@ def nuscenes_data_prep(root_path,
         version (str): Dataset version.
         dataset_name (str): The dataset class name.
         out_dir (str): Output directory of the groundtruth database info.
-        max_sweeps (int): Number of input consecutive frames. Default: 10
+        max_sweeps (int, optional): Number of input consecutive frames.
+            Default: 10
     """
     nuscenes_converter.create_nuscenes_infos(
         root_path, info_prefix, version=version, max_sweeps=max_sweeps)
@@ -152,8 +165,9 @@ def waymo_data_prep(root_path,
         info_prefix (str): The prefix of info filenames.
         out_dir (str): Output directory of the generated info file.
         workers (int): Number of threads to be used.
-        max_sweeps (int): Number of input consecutive frames. Default: 5 \
-            Here we store pose information of these frames for later use.
+        max_sweeps (int, optional): Number of input consecutive frames.
+            Default: 5. Here we store pose information of these frames
+            for later use.
     """
     from tools.data_converter import waymo_converter as waymo
 
@@ -173,14 +187,16 @@ def waymo_data_prep(root_path,
         converter.convert()
     # Generate waymo infos
     out_dir = osp.join(out_dir, 'kitti_format')
-    kitti.create_waymo_info_file(out_dir, info_prefix, max_sweeps=max_sweeps)
-    create_groundtruth_database(
+    kitti.create_waymo_info_file(
+        out_dir, info_prefix, max_sweeps=max_sweeps, workers=workers)
+    GTDatabaseCreater(
         'WaymoDataset',
         out_dir,
         info_prefix,
         f'{out_dir}/{info_prefix}_infos_train.pkl',
         relative_path=False,
-        with_mask=False)
+        with_mask=False,
+        num_worker=workers).create()
 
 
 parser = argparse.ArgumentParser(description='Data converter arg parser')
@@ -203,10 +219,14 @@ parser.add_argument(
     required=False,
     help='specify sweeps of lidar per example')
 parser.add_argument(
+    '--with-plane',
+    action='store_true',
+    help='Whether to use plane information for kitti.')
+parser.add_argument(
     '--out-dir',
     type=str,
     default='./data/kitti',
-    required='False',
+    required=False,
     help='name of info pkl')
 parser.add_argument('--extra-tag', type=str, default='kitti')
 parser.add_argument(
@@ -219,7 +239,8 @@ if __name__ == '__main__':
             root_path=args.root_path,
             info_prefix=args.extra_tag,
             version=args.version,
-            out_dir=args.out_dir)
+            out_dir=args.out_dir,
+            with_plane=args.with_plane)
     elif args.dataset == 'nuscenes' and args.version != 'v1.0-mini':
         train_version = f'{args.version}-trainval'
         nuscenes_data_prep(

@@ -1,12 +1,13 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import copy
-import mmcv
-import numpy as np
 import os
 import tempfile
+from os import path as osp
+
+import mmcv
+import numpy as np
 import torch
 from mmcv.utils import print_log
-from os import path as osp
 
 from mmdet.datasets import DATASETS
 from ..core import show_multi_modality_result, show_result
@@ -47,8 +48,9 @@ class KittiDataset(Custom3DDataset):
             Defaults to True.
         test_mode (bool, optional): Whether the dataset is in test mode.
             Defaults to False.
-        pcd_limit_range (list): The range of point cloud used to filter
-            invalid predicted boxes. Default: [0, -40, -3, 70.4, 40, 0.0].
+        pcd_limit_range (list, optional): The range of point cloud used to
+            filter invalid predicted boxes.
+            Default: [0, -40, -3, 70.4, 40, 0.0].
     """
     CLASSES = ('car', 'pedestrian', 'cyclist')
 
@@ -63,7 +65,12 @@ class KittiDataset(Custom3DDataset):
                  box_type_3d='LiDAR',
                  filter_empty_gt=True,
                  test_mode=False,
+<<<<<<< HEAD
                  pcd_limit_range=[-51.2, -51.2, -2.5, 51.2, 51.2, 2.5]):
+=======
+                 pcd_limit_range=[0, -40, -3, 70.4, 40, 0.0],
+                 **kwargs):
+>>>>>>> 5111eda8da97bb670371d9d52a9dd9425cbb2f31
         super().__init__(
             data_root=data_root,
             ann_file=ann_file,
@@ -72,7 +79,8 @@ class KittiDataset(Custom3DDataset):
             modality=modality,
             box_type_3d=box_type_3d,
             filter_empty_gt=filter_empty_gt,
-            test_mode=test_mode)
+            test_mode=test_mode,
+            **kwargs)
 
         self.split = split
         self.root_split = os.path.join(self.data_root, split)
@@ -100,14 +108,14 @@ class KittiDataset(Custom3DDataset):
             index (int): Index of the sample data to get.
 
         Returns:
-            dict: Data information that will be passed to the data \
+            dict: Data information that will be passed to the data
                 preprocessing pipelines. It includes the following keys:
 
                 - sample_idx (str): Sample index.
                 - pts_filename (str): Filename of point clouds.
-                - img_prefix (str | None): Prefix of image files.
+                - img_prefix (str): Prefix of image files.
                 - img_info (dict): Image info.
-                - lidar2img (list[np.ndarray], optional): Transformations \
+                - lidar2img (list[np.ndarray], optional): Transformations
                     from lidar to different cameras.
                 - ann_info (dict): Annotation info.
         """
@@ -145,18 +153,39 @@ class KittiDataset(Custom3DDataset):
         Returns:
             dict: annotation information consists of the following keys:
 
-                - gt_bboxes_3d (:obj:`LiDARInstance3DBoxes`): \
+                - gt_bboxes_3d (:obj:`LiDARInstance3DBoxes`):
                     3D ground truth bboxes.
                 - gt_labels_3d (np.ndarray): Labels of ground truths.
                 - gt_bboxes (np.ndarray): 2D ground truth bboxes.
                 - gt_labels (np.ndarray): Labels of ground truths.
                 - gt_names (list[str]): Class names of ground truths.
+                - difficulty (int): Difficulty defined by KITTI.
+                    0, 1, 2 represent xxxxx respectively.
         """
         # Use index to get the annos, thus the evalhook could also use this api
         info = self.data_infos[index]
         rect = info['calib']['R0_rect'].astype(np.float32)
         Trv2c = info['calib']['Tr_velo_to_cam'].astype(np.float32)
 
+        if 'plane' in info:
+            # convert ground plane to velodyne coordinates
+            reverse = np.linalg.inv(rect @ Trv2c)
+
+            (plane_norm_cam,
+             plane_off_cam) = (info['plane'][:3],
+                               -info['plane'][:3] * info['plane'][3])
+            plane_norm_lidar = \
+                (reverse[:3, :3] @ plane_norm_cam[:, None])[:, 0]
+            plane_off_lidar = (
+                reverse[:3, :3] @ plane_off_cam[:, None][:, 0] +
+                reverse[:3, 3])
+            plane_lidar = np.zeros_like(plane_norm_lidar, shape=(4, ))
+            plane_lidar[:3] = plane_norm_lidar
+            plane_lidar[3] = -plane_norm_lidar.T @ plane_off_lidar
+        else:
+            plane_lidar = None
+
+        difficulty = info['annos']['difficulty']
         annos = info['annos']
         # we need other objects to avoid collision when sample
         annos = self.remove_dontcare(annos)
@@ -190,7 +219,9 @@ class KittiDataset(Custom3DDataset):
             gt_labels_3d=gt_labels_3d,
             bboxes=gt_bboxes,
             labels=gt_labels,
-            gt_names=gt_names)
+            gt_names=gt_names,
+            plane=plane_lidar,
+            difficulty=difficulty)
         return anns_results
 
     def drop_arrays_by_name(self, gt_names, used_classes):
@@ -248,17 +279,17 @@ class KittiDataset(Custom3DDataset):
 
         Args:
             outputs (list[dict]): Testing results of the dataset.
-            pklfile_prefix (str | None): The prefix of pkl files. It includes
+            pklfile_prefix (str): The prefix of pkl files. It includes
                 the file path and the prefix of filename, e.g., "a/b/prefix".
                 If not specified, a temp file will be created. Default: None.
-            submission_prefix (str | None): The prefix of submitted files. It
+            submission_prefix (str): The prefix of submitted files. It
                 includes the file path and the prefix of filename, e.g.,
                 "a/b/prefix". If not specified, a temp file will be created.
                 Default: None.
 
         Returns:
-            tuple: (result_files, tmp_dir), result_files is a dict containing \
-                the json filepaths, tmp_dir is the temporal directory created \
+            tuple: (result_files, tmp_dir), result_files is a dict containing
+                the json filepaths, tmp_dir is the temporal directory created
                 for saving json files when jsonfile_prefix is not specified.
         """
         if pklfile_prefix is None:
@@ -311,17 +342,19 @@ class KittiDataset(Custom3DDataset):
 
         Args:
             results (list[dict]): Testing results of the dataset.
-            metric (str | list[str]): Metrics to be evaluated.
-            logger (logging.Logger | str | None): Logger used for printing
+            metric (str | list[str], optional): Metrics to be evaluated.
+                Default: None.
+            logger (logging.Logger | str, optional): Logger used for printing
                 related information during evaluation. Default: None.
-            pklfile_prefix (str | None): The prefix of pkl files. It includes
+            pklfile_prefix (str, optional): The prefix of pkl files, including
                 the file path and the prefix of filename, e.g., "a/b/prefix".
                 If not specified, a temp file will be created. Default: None.
-            submission_prefix (str | None): The prefix of submission datas.
+            submission_prefix (str, optional): The prefix of submission data.
                 If not specified, the submission data will not be generated.
-            show (bool): Whether to visualize.
+                Default: None.
+            show (bool, optional): Whether to visualize.
                 Default: False.
-            out_dir (str): Path to save the visualization results.
+            out_dir (str, optional): Path to save the visualization results.
                 Default: None.
             pipeline (list[dict], optional): raw data loading for showing.
                 Default: None.
@@ -364,8 +397,8 @@ class KittiDataset(Custom3DDataset):
 
         if tmp_dir is not None:
             tmp_dir.cleanup()
-        if show:
-            self.show(results, out_dir, pipeline=pipeline)
+        if show or out_dir:
+            self.show(results, out_dir, show=show, pipeline=pipeline)
         return ap_dict
 
     def bbox2result_kitti(self,
@@ -377,11 +410,11 @@ class KittiDataset(Custom3DDataset):
         submission.
 
         Args:
-            net_outputs (list[np.ndarray]): List of array storing the \
+            net_outputs (list[np.ndarray]): List of array storing the
                 inferenced bounding boxes and scores.
             class_names (list[String]): A list of class names.
-            pklfile_prefix (str | None): The prefix of pkl file.
-            submission_prefix (str | None): The prefix of submission file.
+            pklfile_prefix (str): The prefix of pkl file.
+            submission_prefix (str): The prefix of submission file.
 
         Returns:
             list[dict]: A list of dictionaries with the kitti format.
@@ -494,11 +527,11 @@ class KittiDataset(Custom3DDataset):
         submission.
 
         Args:
-            net_outputs (list[np.ndarray]): List of array storing the \
+            net_outputs (list[np.ndarray]): List of array storing the
                 inferenced bounding boxes and scores.
             class_names (list[String]): A list of class names.
-            pklfile_prefix (str | None): The prefix of pkl file.
-            submission_prefix (str | None): The prefix of submission file.
+            pklfile_prefix (str): The prefix of pkl file.
+            submission_prefix (str): The prefix of submission file.
 
         Returns:
             list[dict]: A list of dictionaries have the kitti format
@@ -613,9 +646,9 @@ class KittiDataset(Custom3DDataset):
             dict: Valid predicted boxes.
 
                 - bbox (np.ndarray): 2D bounding boxes.
-                - box3d_camera (np.ndarray): 3D bounding boxes in \
+                - box3d_camera (np.ndarray): 3D bounding boxes in
                     camera coordinate.
-                - box3d_lidar (np.ndarray): 3D bounding boxes in \
+                - box3d_lidar (np.ndarray): 3D bounding boxes in
                     LiDAR coordinate.
                 - scores (np.ndarray): Scores of boxes.
                 - label_preds (np.ndarray): Class label predictions.
@@ -626,8 +659,6 @@ class KittiDataset(Custom3DDataset):
         scores = box_dict['scores_3d']
         labels = box_dict['labels_3d']
         sample_idx = info['image']['image_idx']
-        # TODO: remove the hack of yaw
-        box_preds.tensor[:, -1] = box_preds.tensor[:, -1] - np.pi
         box_preds.limit_yaw(offset=0.5, period=np.pi * 2)
 
         if len(box_preds) == 0:
@@ -711,7 +742,8 @@ class KittiDataset(Custom3DDataset):
         Args:
             results (list[dict]): List of bounding boxes results.
             out_dir (str): Output directory of visualization result.
-            show (bool): Visualize the results online.
+            show (bool): Whether to visualize the results online.
+                Default: False.
             pipeline (list[dict], optional): raw data loading for showing.
                 Default: None.
         """

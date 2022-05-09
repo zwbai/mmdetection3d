@@ -3,10 +3,11 @@ from __future__ import division
 
 import numpy as np
 import torch
+from mmcv.ops import nms_bev as nms_gpu
+from mmcv.ops import nms_normal_bev as nms_normal_gpu
 from mmcv.runner import force_fp32
 
 from mmdet3d.core import limit_period, xywhr2xyxyr
-from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu, nms_normal_gpu
 from mmdet.models import HEADS
 from .anchor3d_head import Anchor3DHead
 
@@ -60,15 +61,15 @@ class PartA2RPNHead(Anchor3DHead):
                      type='Anchor3DRangeGenerator',
                      range=[0, -39.68, -1.78, 69.12, 39.68, -1.78],
                      strides=[2],
-                     sizes=[[1.6, 3.9, 1.56]],
+                     sizes=[[3.9, 1.6, 1.56]],
                      rotations=[0, 1.57],
                      custom_values=[],
                      reshape_out=False),
                  assigner_per_size=False,
                  assign_per_class=False,
                  diff_rad_by_sin=True,
-                 dir_offset=0,
-                 dir_limit_offset=1,
+                 dir_offset=-np.pi / 2,
+                 dir_limit_offset=0,
                  bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
                  loss_cls=dict(
                      type='CrossEntropyLoss',
@@ -100,20 +101,20 @@ class PartA2RPNHead(Anchor3DHead):
             bbox_preds (list[torch.Tensor]): Multi-level bbox predictions.
             dir_cls_preds (list[torch.Tensor]): Multi-level direction
                 class predictions.
-            gt_bboxes (list[:obj:`BaseInstance3DBoxes`]): Ground truth boxes \
+            gt_bboxes (list[:obj:`BaseInstance3DBoxes`]): Ground truth boxes
                 of each sample.
             gt_labels (list[torch.Tensor]): Labels of each sample.
             input_metas (list[dict]): Point cloud and image's meta info.
-            gt_bboxes_ignore (None | list[torch.Tensor]): Specify
+            gt_bboxes_ignore (list[torch.Tensor]): Specify
                 which bounding.
 
         Returns:
-            dict[str, list[torch.Tensor]]: Classification, bbox, and \
+            dict[str, list[torch.Tensor]]: Classification, bbox, and
                 direction losses of each level.
 
                 - loss_rpn_cls (list[torch.Tensor]): Classification losses.
                 - loss_rpn_bbox (list[torch.Tensor]): Box regression losses.
-                - loss_rpn_dir (list[torch.Tensor]): Direction classification \
+                - loss_rpn_dir (list[torch.Tensor]): Direction classification
                     losses.
         """
         loss_dict = super().loss(cls_scores, bbox_preds, dir_cls_preds,
@@ -143,7 +144,7 @@ class PartA2RPNHead(Anchor3DHead):
             mlvl_anchors (List[torch.Tensor]): Multi-level anchors
                 in single batch.
             input_meta (list[dict]): Contain pcd and img's meta info.
-            cfg (None | :obj:`ConfigDict`): Training or testing config.
+            cfg (:obj:`ConfigDict`): Training or testing config.
             rescale (list[torch.Tensor]): whether th rescale bbox.
 
         Returns:
@@ -207,7 +208,7 @@ class PartA2RPNHead(Anchor3DHead):
         mlvl_dir_scores = torch.cat(mlvl_dir_scores)
         # shape [k, num_class] before sigmoid
         # PartA2 need to keep raw classification score
-        # becase the bbox head in the second stage does not have
+        # because the bbox head in the second stage does not have
         # classification branch,
         # roi head need this score as classification score
         mlvl_cls_score = torch.cat(mlvl_cls_score)
@@ -240,7 +241,7 @@ class PartA2RPNHead(Anchor3DHead):
                 Multi-level bbox.
             score_thr (int): Score threshold.
             max_num (int): Max number of bboxes after nms.
-            cfg (None | :obj:`ConfigDict`): Training or testing config.
+            cfg (:obj:`ConfigDict`): Training or testing config.
             input_meta (dict): Contain pcd and img's meta info.
 
         Returns:

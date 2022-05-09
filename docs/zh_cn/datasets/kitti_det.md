@@ -6,7 +6,7 @@
 
 ## 数据准备
 
-您可以在[这里](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d)下载 KITTI 3D 检测数据并解压缩所有 zip 文件。
+您可以在[这里](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d)下载 KITTI 3D 检测数据并解压缩所有 zip 文件。此外，您可以在[这里](https://download.openmmlab.com/mmdetection3d/data/train_planes.zip)下载道路平面信息，其在训练过程中作为一个可选项，用来提高模型的性能。道路平面信息由 [AVOD](https://github.com/kujason/avod) 生成，你可以在[这里](https://github.com/kujason/avod/issues/19)查看更多细节。
 
 像准备数据集的一般方法一样，建议将数据集根目录链接到 `$MMDETECTION3D/data`。
 
@@ -29,6 +29,7 @@ mmdetection3d
 │   │   │   ├── image_2
 │   │   │   ├── label_2
 │   │   │   ├── velodyne
+│   │   │   ├── planes (optional)
 ```
 
 ### 创建 KITTI 数据集
@@ -44,10 +45,10 @@ wget -c  https://raw.githubusercontent.com/traveller59/second.pytorch/master/sec
 wget -c  https://raw.githubusercontent.com/traveller59/second.pytorch/master/second/data/ImageSets/val.txt --no-check-certificate --content-disposition -O ./data/kitti/ImageSets/val.txt
 wget -c  https://raw.githubusercontent.com/traveller59/second.pytorch/master/second/data/ImageSets/trainval.txt --no-check-certificate --content-disposition -O ./data/kitti/ImageSets/trainval.txt
 
-python tools/create_data.py kitti --root-path ./data/kitti --out-dir ./data/kitti --extra-tag kitti
+python tools/create_data.py kitti --root-path ./data/kitti --out-dir ./data/kitti --extra-tag kitti --with-plane
 ```
 
-需要注意的是，如果您的本地磁盘没有充足的存储空间来存储转换后的数据，您可以通过改变 `out-dir` 来指定其他任意的存储路径。
+需要注意的是，如果您的本地磁盘没有充足的存储空间来存储转换后的数据，您可以通过改变 `out-dir` 来指定其他任意的存储路径。如果您没有准备 `planes` 数据，您需要移除 `--with-plane` 标志。
 
 处理后的文件夹结构应该如下：
 
@@ -69,6 +70,7 @@ kitti
 │   ├── label_2
 │   ├── velodyne
 │   ├── velodyne_reduced
+│   ├── planes (optional)
 ├── kitti_gt_database
 │   ├── xxxxx.bin
 ├── kitti_infos_train.pkl

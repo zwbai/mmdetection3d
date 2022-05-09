@@ -1,8 +1,10 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import copy
+import os
+import warnings
+
 import mmcv
 import numpy as np
-import os
 
 from mmdet3d.core.bbox import box_np_ops
 from mmdet3d.datasets.pipelines import data_augment_utils
@@ -15,10 +17,10 @@ class BatchSampler:
 
     Args:
         sample_list (list[dict]): List of samples.
-        name (str | None): The category of samples. Default: None.
-        epoch (int | None): Sampling epoch. Default: None.
-        shuffle (bool): Whether to shuffle indices. Default: False.
-        drop_reminder (bool): Drop reminder. Default: False.
+        name (str, optional): The category of samples. Default: None.
+        epoch (int, optional): Sampling epoch. Default: None.
+        shuffle (bool, optional): Whether to shuffle indices. Default: False.
+        drop_reminder (bool, optional): Drop reminder. Default: False.
     """
 
     def __init__(self,
@@ -87,9 +89,9 @@ class DataBaseSampler(object):
         rate (float): Rate of actual sampled over maximum sampled number.
         prepare (dict): Name of preparation functions and the input value.
         sample_groups (dict): Sampled classes and numbers.
-        classes (list[str]): List of classes. Default: None.
-        points_loader(dict): Config of points loader. Default: dict(
-            type='LoadPointsFromFile', load_dim=4, use_dim=[0,1,2,3])
+        classes (list[str], optional): List of classes. Default: None.
+        points_loader(dict, optional): Config of points loader. Default:
+            dict(type='LoadPointsFromFile', load_dim=4, use_dim=[0,1,2,3])
     """
 
     def __init__(self,
@@ -103,7 +105,8 @@ class DataBaseSampler(object):
                      type='LoadPointsFromFile',
                      coord_type='LIDAR',
                      load_dim=4,
-                     use_dim=[0, 1, 2, 3])):
+                     use_dim=[0, 1, 2, 3]),
+                 file_client_args=dict(backend='disk')):
         super().__init__()
         self.data_root = data_root
         self.info_path = info_path
@@ -113,8 +116,20 @@ class DataBaseSampler(object):
         self.cat2label = {name: i for i, name in enumerate(classes)}
         self.label2cat = {i: name for i, name in enumerate(classes)}
         self.points_loader = mmcv.build_from_cfg(points_loader, PIPELINES)
+        self.file_client = mmcv.FileClient(**file_client_args)
 
-        db_infos = mmcv.load(info_path)
+        # load data base infos
+        if hasattr(self.file_client, 'get_local_path'):
+            with self.file_client.get_local_path(info_path) as local_path:
+                # loading data from a file-like object needs file format
+                db_infos = mmcv.load(open(local_path, 'rb'), file_format='pkl')
+        else:
+            warnings.warn(
+                'The used MMCV version does not have get_local_path. '
+                f'We treat the {info_path} as local paths and it '
+                'might cause errors if the path is not a local path. '
+                'Please use MMCV>= 1.3.16 if you meet errors.')
+            db_infos = mmcv.load(info_path)
 
         # filter database infos
         from mmdet3d.utils import get_root_logger
@@ -188,7 +203,7 @@ class DataBaseSampler(object):
                 db_infos[name] = filtered_infos
         return db_infos
 
-    def sample_all(self, gt_bboxes, gt_labels, img=None):
+    def sample_all(self, gt_bboxes, gt_labels, img=None, ground_plane=None):
         """Sampling all categories of bboxes.
 
         Args:
@@ -198,9 +213,9 @@ class DataBaseSampler(object):
         Returns:
             dict: Dict of sampled 'pseudo ground truths'.
 
-                - gt_labels_3d (np.ndarray): ground truths labels \
+                - gt_labels_3d (np.ndarray): ground truths labels
                     of sampled objects.
-                - gt_bboxes_3d (:obj:`BaseInstance3DBoxes`): \
+                - gt_bboxes_3d (:obj:`BaseInstance3DBoxes`):
                     sampled ground truth 3D bounding boxes
                 - points (np.ndarray): sampled points
                 - group_ids (np.ndarray): ids of sampled ground truths
@@ -263,6 +278,15 @@ class DataBaseSampler(object):
 
             gt_labels = np.array([self.cat2label[s['name']] for s in sampled],
                                  dtype=np.long)
+
+            if ground_plane is not None:
+                xyz = sampled_gt_bboxes[:, :3]
+                dz = (ground_plane[:3][None, :] *
+                      xyz).sum(-1) + ground_plane[3]
+                sampled_gt_bboxes[:, 2] -= dz
+                for i, s_points in enumerate(s_points_list):
+                    s_points.tensor[:, 2].sub_(dz[i])
+
             ret = {
                 'gt_labels_3d':
                 gt_labels,
