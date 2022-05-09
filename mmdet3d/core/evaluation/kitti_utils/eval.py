@@ -646,21 +646,15 @@ def do_eval(gt_annos,
     if 'bev' in eval_types:
         ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
                          min_overlaps)
-<<<<<<< HEAD
         mAP_bev = get_mAP(ret['precision'])
         mAR_bev = get_mAP(ret['recall'])
         
-=======
-        mAP11_bev = get_mAP11(ret['precision'])
-        mAP40_bev = get_mAP40(ret['precision'])
->>>>>>> 5111eda8da97bb670371d9d52a9dd9425cbb2f31
 
     mAP11_3d = None
     mAP40_3d = None
     if '3d' in eval_types:
         ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
                          min_overlaps)
-<<<<<<< HEAD
         mAP_3d = get_mAP(ret['precision'])
         mAR_3d = get_mAP(ret['recall'])
         
@@ -668,12 +662,6 @@ def do_eval(gt_annos,
     print('\n mAR_bev:', mAR_bev)
     print('\n mAR_3d:', mAR_3d)
     return mAP_bbox, mAP_bev, mAP_3d, mAP_aos
-=======
-        mAP11_3d = get_mAP11(ret['precision'])
-        mAP40_3d = get_mAP40(ret['precision'])
-    return (mAP11_bbox, mAP11_bev, mAP11_3d, mAP11_aos, mAP40_bbox, mAP40_bev,
-            mAP40_3d, mAP40_aos)
->>>>>>> 5111eda8da97bb670371d9d52a9dd9425cbb2f31
 
 
 def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
