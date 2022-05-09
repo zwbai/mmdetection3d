@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+from black import out
 import torch
 from mmcv.cnn import build_norm_layer
 from mmcv.runner import force_fp32
@@ -7,7 +8,7 @@ from torch import nn
 from mmdet3d.ops import DynamicScatter
 from ..builder import VOXEL_ENCODERS
 from .utils import PFNLayer, get_paddings_indicator
-
+from .pointtransformer_seg import PointTransformerLayer
 
 @VOXEL_ENCODERS.register_module()
 class PointAttentionNet(nn.Module):
@@ -73,12 +74,10 @@ class PointAttentionNet(nn.Module):
             else:
                 last_layer = True
             pfn_layers.append(
-                PFNLayer(
-                    in_filters,
-                    out_filters,
-                    norm_cfg=norm_cfg,
-                    last_layer=last_layer,
-                    mode=mode))
+                PointTransformerLayer(
+                    in_planes=4,
+                    out_planes=64,
+                ))
         self.pfn_layers = nn.ModuleList(pfn_layers)
 
         # Need pillar (voxel) size and x/y offset in order to calculate offset
